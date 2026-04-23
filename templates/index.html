@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CVAT QC Metrics Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f12;
+    --surface: #161a1f;
+    --surface2: #1e242c;
+    --border: #2a3240;
+    --accent: #00c8a0;
+    --accent2: #4e9cff;
+    --danger: #ff5f6d;
+    --warn: #ffb347;
+    --text: #e8edf2;
+    --muted: #6b7b8e;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  .header {
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--surface);
+  }
+  .header-logo {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .header-logo svg { width: 18px; height: 18px; }
+  .header h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
+  .header span { font-size: 12px; color: var(--muted); font-family: var(--mono); margin-left: auto; }
+
+  /* LAYOUT */
+  .main { display: grid; grid-template-columns: 320px 1fr; min-height: calc(100vh - 61px); }
+
+  /* SIDEBAR */
+  .sidebar {
+    border-right: 1px solid var(--border);
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background: var(--surface);
+  }
+  .sidebar h2 { font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+
+  .upload-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(0, 200, 160, 0.05);
+  }
+  .upload-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
+  }
+  .upload-zone .uz-label { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .upload-zone .uz-name { font-size: 12px; color: var(--accent); font-family: var(--mono); margin-top: 4px; word-break: break-all; }
+  .uz-icon { font-size: 22px; color: var(--muted); }
+
+  .field-group { display: flex; flex-direction: column; gap: 6px; }
+  .field-group label { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
+  .field-group label span { color: var(--accent); font-family: var(--mono); font-size: 13px; }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+
+  .toggle-row { display: flex; justify-content: space-between; align-items: center; }
+  .toggle-row label { font-size: 12px; color: var(--muted); }
+  .toggle {
+    width: 36px; height: 20px;
+    background: var(--border);
+    border-radius: 10px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .toggle.on { background: var(--accent); }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 14px; height: 14px;
+    background: white;
+    border-radius: 50%;
+    top: 3px; left: 3px;
+    transition: transform 0.2s;
+  }
+  .toggle.on::after { transform: translateX(16px); }
+
+  .btn-analyze {
+    background: var(--accent);
+    color: #0d0f12;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--sans);
+    transition: opacity 0.2s, transform 0.1s;
+    width: 100%;
+  }
+  .btn-analyze:hover { opacity: 0.88; }
+  .btn-analyze:active { transform: scale(0.98); }
+  .btn-analyze:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* CONTENT */
+  .content { padding: 28px 32px; overflow-y: auto; }
+
+  /* EMPTY STATE */
+  .empty-state {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--muted);
+    text-align: center;
+  }
+  .empty-state .es-icon { font-size: 48px; opacity: 0.4; }
+  .empty-state p { font-size: 13px; max-width: 260px; line-height: 1.6; }
+
+  /* METRICS GRID */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 10px 10px 0 0;
+  }
+  .mc-precision::before { background: var(--accent2); }
+  .mc-recall::before { background: var(--accent); }
+  .mc-accuracy::before { background: var(--warn); }
+  .mc-iou::before { background: #c084fc; }
+  .metric-card .mc-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .metric-card .mc-value { font-size: 32px; font-weight: 300; font-family: var(--mono); line-height: 1; }
+  .metric-card .mc-sub { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .mc-precision .mc-value { color: var(--accent2); }
+  .mc-recall .mc-value { color: var(--accent); }
+  .mc-accuracy .mc-value { color: var(--warn); }
+  .mc-iou .mc-value { color: #c084fc; }
+
+  /* STAT ROW */
+  .stat-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  .stat-pill {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-family: var(--mono);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .stat-pill .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot-tp { background: var(--accent); }
+  .dot-fp { background: var(--danger); }
+  .dot-fn { background: var(--warn); }
+
+  /* CHART GRID */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+  }
+  .chart-card h3 { font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+
+  /* SECTION */
+  .section { margin-bottom: 28px; }
+  .section-title { font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+
+  /* TABLE */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .data-table th { color: var(--muted); font-weight: 500; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .data-table td { padding: 9px 12px; border-bottom: 1px solid rgba(42, 50, 64, 0.5); font-family: var(--mono); }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: var(--surface2); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 500; }
+  .badge-good { background: rgba(0,200,160,0.15); color: var(--accent); }
+  .badge-warn { background: rgba(255,179,71,0.15); color: var(--warn); }
+  .badge-bad { background: rgba(255,95,109,0.15); color: var(--danger); }
+
+  /* LOADING */
+  .loading {
+    display: flex; align-items: center; justify-content: center;
+    height: 300px; gap: 12px; color: var(--muted); font-size: 13px;
+  }
+  .spinner {
+    width: 20px; height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ERROR */
+  .error-banner {
+    background: rgba(255,95,109,0.1);
+    border: 1px solid rgba(255,95,109,0.3);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--danger);
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+
+  /* FORMAT BADGE */
+  .fmt-tag {
+    display: inline-block;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-family: var(--mono);
+    color: var(--muted);
+    margin-left: 8px;
+  }
+
+  .progress-bar {
+    height: 6px; border-radius: 3px;
+    background: var(--border); overflow: hidden; margin-top: 4px;
+  }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-logo">
+    <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="1" y="1" width="7" height="7" rx="1.5" fill="#0d0f12"/>
+      <rect x="10" y="1" width="7" height="7" rx="1.5" fill="#0d0f12" opacity="0.5"/>
+      <rect x="1" y="10" width="7" height="7" rx="1.5" fill="#0d0f12" opacity="0.5"/>
+      <rect x="10" y="10" width="7" height="7" rx="1.5" fill="#0d0f12" opacity="0.3"/>
+    </svg>
+  </div>
+  <h1>CVAT QC Metrics Analyzer</h1>
+  <span>Precision · Recall · Accuracy · IoU</span>
+</header>
+
+<div class="main">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div>
+      <h2>Ground Truth</h2>
+      <div class="upload-zone" id="gt-zone">
+        <input type="file" id="gt-file" accept=".xml,.json">
+        <div class="uz-icon">📂</div>
+        <div class="uz-label">CVAT XML / COCO JSON / VOC XML</div>
+        <div class="uz-name" id="gt-name">Drop file or click to browse</div>
+      </div>
+    </div>
+
+    <div>
+      <h2>Prediction / Annotator</h2>
+      <div class="upload-zone" id="pred-zone">
+        <input type="file" id="pred-file" accept=".xml,.json">
+        <div class="uz-icon">🏷️</div>
+        <div class="uz-label">CVAT XML / COCO JSON / VOC XML</div>
+        <div class="uz-name" id="pred-name">Drop file or click to browse</div>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label>
+        Min IoU Threshold (%)
+        <span id="iou-val">50%</span>
+      </label>
+      <input type="range" id="iou-slider" min="10" max="95" step="5" value="50">
+      <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--muted); margin-top:2px;">
+        <span>Lenient (10%)</span><span>Strict (95%)</span>
+      </div>
+    </div>
+
+    <div class="toggle-row">
+      <label>Compare class labels</label>
+      <div class="toggle on" id="label-toggle" title="When ON, label names must match"></div>
+    </div>
+
+    <button class="btn-analyze" id="btn-analyze" disabled>Run Analysis</button>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="content" id="content">
+    <div class="empty-state">
+      <div class="es-icon">⬡</div>
+      <p>Upload a ground truth file and a prediction file to compute quality metrics.</p>
+      <p style="font-size:11px; color:var(--muted); margin-top:4px;">Supports CVAT XML 1.1, COCO JSON, Pascal VOC XML</p>
+    </div>
+  </main>
+
+</div>
+
+<script>
+const gtFile = document.getElementById('gt-file');
+const predFile = document.getElementById('pred-file');
+const gtName = document.getElementById('gt-name');
+const predName = document.getElementById('pred-name');
+const iouSlider = document.getElementById('iou-slider');
+const iouVal = document.getElementById('iou-val');
+const labelToggle = document.getElementById('label-toggle');
+const btnAnalyze = document.getElementById('btn-analyze');
+const content = document.getElementById('content');
+
+let compareLabels = true;
+let charts = {};
+
+gtFile.addEventListener('change', () => {
+  gtName.textContent = gtFile.files[0]?.name || 'Drop file or click to browse';
+  checkReady();
+});
+predFile.addEventListener('change', () => {
+  predName.textContent = predFile.files[0]?.name || 'Drop file or click to browse';
+  checkReady();
+});
+iouSlider.addEventListener('input', () => {
+  iouVal.textContent = iouSlider.value + '%';
+});
+labelToggle.addEventListener('click', () => {
+  compareLabels = !compareLabels;
+  labelToggle.classList.toggle('on', compareLabels);
+});
+
+function checkReady() {
+  btnAnalyze.disabled = !(gtFile.files[0] && predFile.files[0]);
+}
+
+btnAnalyze.addEventListener('click', runAnalysis);
+
+async function runAnalysis() {
+  content.innerHTML = '<div class="loading"><div class="spinner"></div>Analyzing annotations…</div>';
+  btnAnalyze.disabled = true;
+
+  const fd = new FormData();
+  fd.append('gt_file', gtFile.files[0]);
+  fd.append('pred_file', predFile.files[0]);
+  fd.append('iou_threshold', iouSlider.value);
+  fd.append('compare_labels', compareLabels ? 'true' : 'false');
+
+  try {
+    const res = await fetch('/analyze', { method: 'POST', body: fd });
+    const data = await res.json();
+
+    if (data.error) {
+      content.innerHTML = `<div class="error-banner">⚠ ${data.error}</div>`;
+      return;
+    }
+
+    renderResults(data);
+  } catch(e) {
+    content.innerHTML = `<div class="error-banner">⚠ Network error: ${e.message}</div>`;
+  } finally {
+    btnAnalyze.disabled = false;
+  }
+}
+
+function metricBadge(val) {
+  if (val >= 80) return 'badge-good';
+  if (val >= 50) return 'badge-warn';
+  return 'badge-bad';
+}
+
+function renderResults(d) {
+  Object.values(charts).forEach(c => c.destroy());
+  charts = {};
+
+  const frameRows = (d.frame_results || []).slice(0, 50).map(fr => `
+    <tr>
+      <td>${fr.frame_id}</td>
+      <td style="color:var(--accent)">${fr.tp}</td>
+      <td style="color:var(--danger)">${fr.fp}</td>
+      <td style="color:var(--warn)">${fr.fn}</td>
+      <td>${fr.mean_iou}%</td>
+    </tr>
+  `).join('');
+
+  const labelRows = Object.entries(d.label_breakdown || {}).map(([lbl, s]) => `
+    <tr>
+      <td>${lbl}</td>
+      <td style="color:var(--accent)">${s.tp}</td>
+      <td style="color:var(--danger)">${s.fp}</td>
+      <td style="color:var(--warn)">${s.fn}</td>
+      <td><span class="badge ${metricBadge(s.precision)}">${s.precision}%</span></td>
+      <td><span class="badge ${metricBadge(s.recall)}">${s.recall}%</span></td>
+    </tr>
+  `).join('');
+
+  content.innerHTML = `
+    <div class="metrics-grid">
+      <div class="metric-card mc-precision">
+        <div class="mc-label">Precision</div>
+        <div class="mc-value">${d.precision}<span style="font-size:18px">%</span></div>
+        <div class="mc-sub">TP / (TP + FP)</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${d.precision}%;background:var(--accent2)"></div></div>
+      </div>
+      <div class="metric-card mc-recall">
+        <div class="mc-label">Recall</div>
+        <div class="mc-value">${d.recall}<span style="font-size:18px">%</span></div>
+        <div class="mc-sub">TP / (TP + FN)</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${d.recall}%;background:var(--accent)"></div></div>
+      </div>
+      <div class="metric-card mc-accuracy">
+        <div class="mc-label">Accuracy (F1)</div>
+        <div class="mc-value">${d.accuracy}<span style="font-size:18px">%</span></div>
+        <div class="mc-sub">Harmonic mean P·R</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${d.accuracy}%;background:var(--warn)"></div></div>
+      </div>
+      <div class="metric-card mc-iou">
+        <div class="mc-label">Mean IoU</div>
+        <div class="mc-value">${d.mean_iou}<span style="font-size:18px">%</span></div>
+        <div class="mc-sub">Avg matched overlap</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${d.mean_iou}%;background:#c084fc"></div></div>
+      </div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-pill"><span class="dot dot-tp"></span>TP: ${d.tp}</div>
+      <div class="stat-pill"><span class="dot dot-fp"></span>FP: ${d.fp}</div>
+      <div class="stat-pill"><span class="dot dot-fn"></span>FN: ${d.fn}</div>
+      <div class="stat-pill" style="margin-left:auto">GT: ${d.total_gt} boxes <span class="fmt-tag">${d.format_gt}</span></div>
+      <div class="stat-pill">Pred: ${d.total_pred} boxes <span class="fmt-tag">${d.format_pred}</span></div>
+      <div class="stat-pill">IoU ≥ ${d.iou_threshold}%</div>
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3>Metric Overview</h3>
+        <div style="position:relative;height:200px">
+          <canvas id="radar-chart" role="img" aria-label="Radar chart showing Precision, Recall, Accuracy and IoU scores."></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>TP / FP / FN Breakdown</h3>
+        <div style="position:relative;height:200px">
+          <canvas id="doughnut-chart" role="img" aria-label="Doughnut chart showing distribution of TP, FP and FN."></canvas>
+        </div>
+      </div>
+    </div>
+
+    ${Object.keys(d.label_breakdown).length > 0 ? `
+    <div class="section">
+      <div class="section-title">Per-Class Breakdown</div>
+      <div class="chart-card" style="padding-bottom:4px">
+        <table class="data-table">
+          <thead><tr><th>Class</th><th>TP</th><th>FP</th><th>FN</th><th>Precision</th><th>Recall</th></tr></thead>
+          <tbody>${labelRows}</tbody>
+        </table>
+      </div>
+    </div>` : ''}
+
+    <div class="section">
+      <div class="section-title">Per-Frame Results ${d.frame_results.length > 50 ? '(first 50)' : ''}</div>
+      <div class="chart-card" style="padding-bottom:4px">
+        <table class="data-table">
+          <thead><tr><th>Frame</th><th>TP</th><th>FP</th><th>FN</th><th>Mean IoU</th></tr></thead>
+          <tbody>${frameRows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  // Radar chart
+  charts.radar = new Chart(document.getElementById('radar-chart'), {
+    type: 'radar',
+    data: {
+      labels: ['Precision', 'Recall', 'Accuracy', 'Mean IoU'],
+      datasets: [{
+        data: [d.precision, d.recall, d.accuracy, d.mean_iou],
+        backgroundColor: 'rgba(0, 200, 160, 0.12)',
+        borderColor: '#00c8a0',
+        borderWidth: 2,
+        pointBackgroundColor: '#00c8a0',
+        pointRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        r: {
+          min: 0, max: 100,
+          ticks: { stepSize: 25, color: '#6b7b8e', font: { size: 9 }, backdropColor: 'transparent' },
+          grid: { color: '#2a3240' },
+          pointLabels: { color: '#6b7b8e', font: { size: 10 } },
+          angleLines: { color: '#2a3240' }
+        }
+      }
+    }
+  });
+
+  // Doughnut chart
+  charts.doughnut = new Chart(document.getElementById('doughnut-chart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['True Positive', 'False Positive', 'False Negative'],
+      datasets: [{
+        data: [d.tp, d.fp, d.fn],
+        backgroundColor: ['#00c8a0', '#ff5f6d', '#ffb347'],
+        borderWidth: 0,
+        hoverOffset: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '68%',
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: { color: '#6b7b8e', font: { size: 11 }, boxWidth: 10, padding: 12 }
+        }
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>

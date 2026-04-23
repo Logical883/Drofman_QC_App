@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotations>
+  <version>1.1</version>
+  <meta>
+    <task><name>Sample QC Task</name><size>3</size></task>
+  </meta>
+
+  <image id="0" name="frame_000.jpg" width="1920" height="1080">
+    <box label="car" xtl="100" ytl="150" xbr="400" ybr="350" occluded="0"/>
+    <box label="car" xtl="600" ytl="200" xbr="850" ybr="380" occluded="0"/>
+    <box label="person" xtl="950" ytl="300" xbr="1020" ybr="500" occluded="0"/>
+  </image>
+
+  <image id="1" name="frame_001.jpg" width="1920" height="1080">
+    <box label="car" xtl="200" ytl="100" xbr="500" ybr="300" occluded="0"/>
+    <box label="truck" xtl="700" ytl="150" xbr="1100" ybr="400" occluded="0"/>
+  </image>
+
+  <image id="2" name="frame_002.jpg" width="1920" height="1080">
+    <box label="person" xtl="300" ytl="200" xbr="380" ybr="450" occluded="0"/>
+    <box label="person" xtl="500" ytl="180" xbr="575" ybr="430" occluded="0"/>
+    <box label="car" xtl="800" ytl="250" xbr="1050" ybr="420" occluded="0"/>
+  </image>
+</annotations>

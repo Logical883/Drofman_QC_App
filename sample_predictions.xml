@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotations>
+  <version>1.1</version>
+  <meta>
+    <task><n>Sample QC Task - Annotator A</n><size>3</size></task>
+  </meta>
+
+  <image id="0" name="frame_000.jpg" width="1920" height="1080">
+    <!-- Good match -->
+    <box label="car" xtl="105" ytl="155" xbr="405" ybr="355" occluded="0"/>
+    <!-- Slightly off match -->
+    <box label="car" xtl="580" ytl="190" xbr="870" ybr="395" occluded="0"/>
+    <!-- Missing: person was not annotated (FN) -->
+    <!-- Extra box: false positive -->
+    <box label="car" xtl="1100" ytl="400" xbr="1300" ybr="550" occluded="0"/>
+  </image>
+
+  <image id="1" name="frame_001.jpg" width="1920" height="1080">
+    <!-- Good match for car -->
+    <box label="car" xtl="205" ytl="105" xbr="498" ybr="305" occluded="0"/>
+    <!-- Wrong label: annotated as car instead of truck (FP + FN if compare_labels=true) -->
+    <box label="car" xtl="710" ytl="145" xbr="1095" ybr="410" occluded="0"/>
+  </image>
+
+  <image id="2" name="frame_002.jpg" width="1920" height="1080">
+    <!-- Good match for person 1 -->
+    <box label="person" xtl="302" ytl="203" xbr="378" ybr="448" occluded="0"/>
+    <!-- Missed person 2 -->
+    <!-- Good match for car, slightly offset -->
+    <box label="car" xtl="810" ytl="255" xbr="1045" ybr="415" occluded="0"/>
+  </image>
+</annotations>
