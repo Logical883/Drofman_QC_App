@@ -7,582 +7,510 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0d0f12; --surface: #161a1f; --surface2: #1e242c; --border: #2a3240;
+  --accent: #00c8a0; --accent2: #4e9cff; --danger: #ff5f6d; --warn: #ffb347;
+  --purple: #c084fc; --text: #e8edf2; --muted: #6b7b8e;
+  --mono: 'IBM Plex Mono', monospace; --sans: 'IBM Plex Sans', sans-serif;
+}
+body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; min-height: 100vh; }
 
-  :root {
-    --bg: #0d0f12;
-    --surface: #161a1f;
-    --surface2: #1e242c;
-    --border: #2a3240;
-    --accent: #00c8a0;
-    --accent2: #4e9cff;
-    --danger: #ff5f6d;
-    --warn: #ffb347;
-    --text: #e8edf2;
-    --muted: #6b7b8e;
-    --mono: 'IBM Plex Mono', monospace;
-    --sans: 'IBM Plex Sans', sans-serif;
-  }
+.header { border-bottom: 1px solid var(--border); padding: 16px 28px; display: flex; align-items: center; gap: 14px; background: var(--surface); }
+.header-logo { width: 30px; height: 30px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.header-logo svg { width: 16px; height: 16px; }
+.header h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.mode-tabs { display: flex; background: var(--surface2); border-radius: 8px; padding: 3px; gap: 2px; }
+.mode-tab { padding: 5px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; border: none; background: transparent; color: var(--muted); transition: all 0.2s; font-family: var(--sans); }
+.mode-tab.active { background: var(--accent); color: #0d0f12; }
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--sans);
-    font-size: 14px;
-    min-height: 100vh;
-  }
+.main { display: grid; grid-template-columns: 300px 1fr; min-height: calc(100vh - 61px); }
 
-  /* HEADER */
-  .header {
-    border-bottom: 1px solid var(--border);
-    padding: 18px 32px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    background: var(--surface);
-  }
-  .header-logo {
-    width: 32px; height: 32px;
-    background: var(--accent);
-    border-radius: 6px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-  .header-logo svg { width: 18px; height: 18px; }
-  .header h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
-  .header span { font-size: 12px; color: var(--muted); font-family: var(--mono); margin-left: auto; }
+.sidebar { border-right: 1px solid var(--border); padding: 20px 16px; display: flex; flex-direction: column; gap: 18px; background: var(--surface); overflow-y: auto; }
+.sidebar h2 { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
 
-  /* LAYOUT */
-  .main { display: grid; grid-template-columns: 320px 1fr; min-height: calc(100vh - 61px); }
+.upload-zone { border: 1.5px dashed var(--border); border-radius: 8px; padding: 14px 12px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; position: relative; }
+.upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); background: rgba(0,200,160,0.05); }
+.upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.uz-icon { font-size: 20px; color: var(--muted); }
+.uz-label { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.uz-name { font-size: 11px; color: var(--accent); font-family: var(--mono); margin-top: 3px; word-break: break-all; }
 
-  /* SIDEBAR */
-  .sidebar {
-    border-right: 1px solid var(--border);
-    padding: 24px 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    background: var(--surface);
-  }
-  .sidebar h2 { font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.annotator-list { display: flex; flex-direction: column; gap: 8px; }
+.annotator-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; display: flex; align-items: center; gap: 8px; }
+.annotator-item .ai-num { font-size: 10px; font-family: var(--mono); color: var(--muted); width: 18px; flex-shrink: 0; }
+.annotator-item .ai-name-input { flex: 1; background: transparent; border: none; color: var(--text); font-family: var(--sans); font-size: 12px; outline: none; min-width: 0; }
+.annotator-item .ai-name-input::placeholder { color: var(--muted); }
+.annotator-item .ai-file { font-size: 10px; font-family: var(--mono); color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px; }
+.annotator-item .ai-remove { cursor: pointer; color: var(--muted); font-size: 14px; flex-shrink: 0; background: none; border: none; line-height: 1; transition: color 0.2s; padding: 2px 4px; }
+.annotator-item .ai-remove:hover { color: var(--danger); }
 
-  .upload-zone {
-    border: 1.5px dashed var(--border);
-    border-radius: 8px;
-    padding: 16px;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
-    position: relative;
-  }
-  .upload-zone:hover, .upload-zone.dragover {
-    border-color: var(--accent);
-    background: rgba(0, 200, 160, 0.05);
-  }
-  .upload-zone input[type=file] {
-    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
-  }
-  .upload-zone .uz-label { font-size: 12px; color: var(--muted); margin-top: 6px; }
-  .upload-zone .uz-name { font-size: 12px; color: var(--accent); font-family: var(--mono); margin-top: 4px; word-break: break-all; }
-  .uz-icon { font-size: 22px; color: var(--muted); }
+.btn-add { width: 100%; background: transparent; border: 1.5px dashed var(--border); border-radius: 8px; padding: 8px; color: var(--muted); font-size: 12px; cursor: pointer; font-family: var(--sans); transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; position: relative; }
+.btn-add:hover { border-color: var(--accent); color: var(--accent); }
+.btn-add input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
 
-  .field-group { display: flex; flex-direction: column; gap: 6px; }
-  .field-group label { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
-  .field-group label span { color: var(--accent); font-family: var(--mono); font-size: 13px; }
+.field-group { display: flex; flex-direction: column; gap: 6px; }
+.field-group label { font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
+.field-group label span { color: var(--accent); font-family: var(--mono); font-size: 12px; }
+.field-group input[type=text] { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; color: var(--text); font-size: 12px; font-family: var(--sans); outline: none; transition: border-color 0.2s; }
+.field-group input[type=text]:focus { border-color: var(--accent); }
+input[type=range] { -webkit-appearance: none; width: 100%; height: 4px; background: var(--border); border-radius: 2px; outline: none; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+.toggle-row { display: flex; justify-content: space-between; align-items: center; }
+.toggle-row label { font-size: 11px; color: var(--muted); }
+.toggle { width: 34px; height: 18px; background: var(--border); border-radius: 9px; position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
+.toggle.on { background: var(--accent); }
+.toggle::after { content: ''; position: absolute; width: 12px; height: 12px; background: white; border-radius: 50%; top: 3px; left: 3px; transition: transform 0.2s; }
+.toggle.on::after { transform: translateX(16px); }
 
-  input[type=range] {
-    -webkit-appearance: none;
-    width: 100%;
-    height: 4px;
-    background: var(--border);
-    border-radius: 2px;
-    outline: none;
-  }
-  input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 16px; height: 16px;
-    border-radius: 50%;
-    background: var(--accent);
-    cursor: pointer;
-  }
+.btn-analyze { background: var(--accent); color: #0d0f12; border: none; border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--sans); transition: opacity 0.2s, transform 0.1s; width: 100%; }
+.btn-analyze:hover { opacity: 0.88; }
+.btn-analyze:active { transform: scale(0.98); }
+.btn-analyze:disabled { opacity: 0.4; cursor: not-allowed; }
 
-  .toggle-row { display: flex; justify-content: space-between; align-items: center; }
-  .toggle-row label { font-size: 12px; color: var(--muted); }
-  .toggle {
-    width: 36px; height: 20px;
-    background: var(--border);
-    border-radius: 10px;
-    position: relative;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-  .toggle.on { background: var(--accent); }
-  .toggle::after {
-    content: '';
-    position: absolute;
-    width: 14px; height: 14px;
-    background: white;
-    border-radius: 50%;
-    top: 3px; left: 3px;
-    transition: transform 0.2s;
-  }
-  .toggle.on::after { transform: translateX(16px); }
+.content { padding: 24px 28px; overflow-y: auto; }
+.empty-state { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--muted); text-align: center; }
+.empty-state .es-icon { font-size: 44px; opacity: 0.35; }
+.empty-state p { font-size: 13px; max-width: 260px; line-height: 1.6; }
 
-  .btn-analyze {
-    background: var(--accent);
-    color: #0d0f12;
-    border: none;
-    border-radius: 8px;
-    padding: 11px 16px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: var(--sans);
-    transition: opacity 0.2s, transform 0.1s;
-    width: 100%;
-  }
-  .btn-analyze:hover { opacity: 0.88; }
-  .btn-analyze:active { transform: scale(0.98); }
-  .btn-analyze:disabled { opacity: 0.4; cursor: not-allowed; }
+.lb-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+.lb-header h2 { font-size: 13px; font-weight: 600; }
+.lb-meta { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 3px; }
 
-  /* CONTENT */
-  .content { padding: 28px 32px; overflow-y: auto; }
+.btn-export { background: transparent; border: 1px solid var(--accent); color: var(--accent); border-radius: 7px; padding: 7px 14px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: var(--sans); transition: all 0.2s; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.btn-export:hover { background: var(--accent); color: #0d0f12; }
+.btn-export:disabled { opacity: 0.4; cursor: not-allowed; }
 
-  /* EMPTY STATE */
-  .empty-state {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    color: var(--muted);
-    text-align: center;
-  }
-  .empty-state .es-icon { font-size: 48px; opacity: 0.4; }
-  .empty-state p { font-size: 13px; max-width: 260px; line-height: 1.6; }
+.lb-table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 24px; }
+.lb-table { width: 100%; border-collapse: collapse; }
+.lb-table th { background: var(--surface2); color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 10px 12px; text-align: center; border-bottom: 1px solid var(--border); }
+.lb-table th:nth-child(1), .lb-table th:nth-child(2) { text-align: left; }
+.lb-table td { padding: 10px 12px; border-bottom: 1px solid rgba(42,50,64,0.5); font-size: 13px; text-align: center; }
+.lb-table tr:last-child td { border-bottom: none; }
+.lb-table tbody tr:hover td { background: var(--surface2); cursor: pointer; }
+.rank { font-family: var(--mono); font-size: 15px; }
+.name-cell { text-align: left !important; font-weight: 500; }
+.badge-score { display: inline-block; padding: 2px 9px; border-radius: 5px; font-size: 12px; font-weight: 600; font-family: var(--mono); }
+.bg-good { background: rgba(0,200,160,0.15); color: #00c8a0; }
+.bg-warn { background: rgba(255,179,71,0.15); color: var(--warn); }
+.bg-bad { background: rgba(255,95,109,0.15); color: var(--danger); }
 
-  /* METRICS GRID */
-  .metrics-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
-    margin-bottom: 28px;
-  }
-  .metric-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px;
-    position: relative;
-    overflow: hidden;
-  }
-  .metric-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    border-radius: 10px 10px 0 0;
-  }
-  .mc-precision::before { background: var(--accent2); }
-  .mc-recall::before { background: var(--accent); }
-  .mc-accuracy::before { background: var(--warn); }
-  .mc-iou::before { background: #c084fc; }
-  .metric-card .mc-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
-  .metric-card .mc-value { font-size: 32px; font-weight: 300; font-family: var(--mono); line-height: 1; }
-  .metric-card .mc-sub { font-size: 11px; color: var(--muted); margin-top: 6px; }
-  .mc-precision .mc-value { color: var(--accent2); }
-  .mc-recall .mc-value { color: var(--accent); }
-  .mc-accuracy .mc-value { color: var(--warn); }
-  .mc-iou .mc-value { color: #c084fc; }
+.detail-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 22px; margin-bottom: 24px; }
+.detail-panel h3 { font-size: 13px; font-weight: 600; margin-bottom: 16px; }
+.metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+.metric-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; padding: 14px; position: relative; overflow: hidden; }
+.metric-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 9px 9px 0 0; }
+.mc-p::before { background: var(--accent2); } .mc-r::before { background: var(--accent); }
+.mc-a::before { background: var(--warn); } .mc-i::before { background: var(--purple); }
+.mc-label { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.mc-value { font-size: 26px; font-weight: 300; font-family: var(--mono); line-height: 1; }
+.mc-p .mc-value { color: var(--accent2); } .mc-r .mc-value { color: var(--accent); }
+.mc-a .mc-value { color: var(--warn); } .mc-i .mc-value { color: var(--purple); }
+.mc-sub { font-size: 10px; color: var(--muted); margin-top: 5px; }
+.progress-bar { height: 4px; border-radius: 2px; background: var(--border); overflow: hidden; margin-top: 6px; }
+.progress-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
 
-  /* STAT ROW */
-  .stat-row {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 28px;
-  }
-  .stat-pill {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 6px 14px;
-    font-size: 12px;
-    font-family: var(--mono);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .stat-pill .dot { width: 8px; height: 8px; border-radius: 50%; }
-  .dot-tp { background: var(--accent); }
-  .dot-fp { background: var(--danger); }
-  .dot-fn { background: var(--warn); }
+.chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+.chart-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; padding: 14px 16px; }
+.chart-card h4 { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
 
-  /* CHART GRID */
-  .chart-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 28px;
-  }
-  .chart-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px 20px;
-  }
-  .chart-card h3 { font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.data-table th { color: var(--muted); font-weight: 500; padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; }
+.data-table td { padding: 8px 10px; border-bottom: 1px solid rgba(42,50,64,0.4); font-family: var(--mono); font-size: 11px; }
+.data-table tr:last-child td { border-bottom: none; }
+.stat-pill { display: inline-flex; align-items: center; gap: 6px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 11px; font-family: var(--mono); }
+.dot { width: 7px; height: 7px; border-radius: 50%; }
+.dot-tp { background: var(--accent); } .dot-fp { background: var(--danger); } .dot-fn { background: var(--warn); }
 
-  /* SECTION */
-  .section { margin-bottom: 28px; }
-  .section-title { font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
-
-  /* TABLE */
-  .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  .data-table th { color: var(--muted); font-weight: 500; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
-  .data-table td { padding: 9px 12px; border-bottom: 1px solid rgba(42, 50, 64, 0.5); font-family: var(--mono); }
-  .data-table tr:last-child td { border-bottom: none; }
-  .data-table tr:hover td { background: var(--surface2); }
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 500; }
-  .badge-good { background: rgba(0,200,160,0.15); color: var(--accent); }
-  .badge-warn { background: rgba(255,179,71,0.15); color: var(--warn); }
-  .badge-bad { background: rgba(255,95,109,0.15); color: var(--danger); }
-
-  /* LOADING */
-  .loading {
-    display: flex; align-items: center; justify-content: center;
-    height: 300px; gap: 12px; color: var(--muted); font-size: 13px;
-  }
-  .spinner {
-    width: 20px; height: 20px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* ERROR */
-  .error-banner {
-    background: rgba(255,95,109,0.1);
-    border: 1px solid rgba(255,95,109,0.3);
-    border-radius: 8px;
-    padding: 12px 16px;
-    color: var(--danger);
-    font-size: 13px;
-    margin-bottom: 16px;
-  }
-
-  /* FORMAT BADGE */
-  .fmt-tag {
-    display: inline-block;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 2px 8px;
-    font-size: 10px;
-    font-family: var(--mono);
-    color: var(--muted);
-    margin-left: 8px;
-  }
-
-  .progress-bar {
-    height: 6px; border-radius: 3px;
-    background: var(--border); overflow: hidden; margin-top: 4px;
-  }
-  .progress-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+.loading { display: flex; align-items: center; justify-content: center; height: 300px; gap: 12px; color: var(--muted); font-size: 13px; }
+.spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.error-banner { background: rgba(255,95,109,0.1); border: 1px solid rgba(255,95,109,0.3); border-radius: 8px; padding: 10px 14px; color: var(--danger); font-size: 12px; margin-bottom: 12px; }
+.warn-banner { background: rgba(255,179,71,0.1); border: 1px solid rgba(255,179,71,0.3); border-radius: 8px; padding: 10px 14px; color: var(--warn); font-size: 12px; margin-bottom: 12px; }
+.section-title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
 </style>
 </head>
 <body>
 
 <header class="header">
   <div class="header-logo">
-    <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="1" y="1" width="7" height="7" rx="1.5" fill="#0d0f12"/>
-      <rect x="10" y="1" width="7" height="7" rx="1.5" fill="#0d0f12" opacity="0.5"/>
-      <rect x="1" y="10" width="7" height="7" rx="1.5" fill="#0d0f12" opacity="0.5"/>
-      <rect x="10" y="10" width="7" height="7" rx="1.5" fill="#0d0f12" opacity="0.3"/>
-    </svg>
+    <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1.5" fill="#0d0f12"/><rect x="9" y="1" width="6" height="6" rx="1.5" fill="#0d0f12" opacity="0.5"/><rect x="1" y="9" width="6" height="6" rx="1.5" fill="#0d0f12" opacity="0.5"/><rect x="9" y="9" width="6" height="6" rx="1.5" fill="#0d0f12" opacity="0.3"/></svg>
   </div>
-  <h1>CVAT QC Metrics Analyzer</h1>
-  <span>Precision · Recall · Accuracy · IoU</span>
+  <h1>Drofman Annotation QC Metrics Analyzer</h1>
+  <div class="header-right">
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="tab-single" onclick="setMode('single')">Single Annotator</button>
+      <button class="mode-tab" id="tab-batch" onclick="setMode('batch')">Team Batch</button>
+    </div>
+  </div>
 </header>
 
 <div class="main">
-
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <div>
-      <h2>Ground Truth</h2>
-      <div class="upload-zone" id="gt-zone">
-        <input type="file" id="gt-file" accept=".xml,.json">
-        <div class="uz-icon">📂</div>
-        <div class="uz-label">CVAT XML / COCO JSON / VOC XML</div>
-        <div class="uz-name" id="gt-name">Drop file or click to browse</div>
-      </div>
-    </div>
-
-    <div>
-      <h2>Prediction / Annotator</h2>
-      <div class="upload-zone" id="pred-zone">
-        <input type="file" id="pred-file" accept=".xml,.json">
-        <div class="uz-icon">🏷️</div>
-        <div class="uz-label">CVAT XML / COCO JSON / VOC XML</div>
-        <div class="uz-name" id="pred-name">Drop file or click to browse</div>
-      </div>
-    </div>
-
-    <div class="field-group">
-      <label>
-        Min IoU Threshold (%)
-        <span id="iou-val">50%</span>
-      </label>
-      <input type="range" id="iou-slider" min="10" max="95" step="5" value="50">
-      <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--muted); margin-top:2px;">
-        <span>Lenient (10%)</span><span>Strict (95%)</span>
-      </div>
-    </div>
-
-    <div class="toggle-row">
-      <label>Compare class labels</label>
-      <div class="toggle on" id="label-toggle" title="When ON, label names must match"></div>
-    </div>
-
-    <button class="btn-analyze" id="btn-analyze" disabled>Run Analysis</button>
-  </aside>
-
-  <!-- CONTENT -->
+  <aside class="sidebar" id="sidebar"></aside>
   <main class="content" id="content">
     <div class="empty-state">
       <div class="es-icon">⬡</div>
-      <p>Upload a ground truth file and a prediction file to compute quality metrics.</p>
-      <p style="font-size:11px; color:var(--muted); margin-top:4px;">Supports CVAT XML 1.1, COCO JSON, Pascal VOC XML</p>
+      <p>Upload a ground truth file and annotator file(s) to compute quality metrics.</p>
+      <p style="font-size:11px;color:var(--muted);margin-top:4px">Supports CVAT XML 1.1 · COCO JSON · Pascal VOC XML</p>
     </div>
   </main>
-
 </div>
 
 <script>
-const gtFile = document.getElementById('gt-file');
-const predFile = document.getElementById('pred-file');
-const gtName = document.getElementById('gt-name');
-const predName = document.getElementById('pred-name');
-const iouSlider = document.getElementById('iou-slider');
-const iouVal = document.getElementById('iou-val');
-const labelToggle = document.getElementById('label-toggle');
-const btnAnalyze = document.getElementById('btn-analyze');
-const content = document.getElementById('content');
-
-let compareLabels = true;
+let mode = 'single';
+let batchAnnotators = [];
+let batchResults = null;
 let charts = {};
+let compareLabels = true;
 
-gtFile.addEventListener('change', () => {
-  gtName.textContent = gtFile.files[0]?.name || 'Drop file or click to browse';
-  checkReady();
-});
-predFile.addEventListener('change', () => {
-  predName.textContent = predFile.files[0]?.name || 'Drop file or click to browse';
-  checkReady();
-});
-iouSlider.addEventListener('input', () => {
-  iouVal.textContent = iouSlider.value + '%';
-});
-labelToggle.addEventListener('click', () => {
-  compareLabels = !compareLabels;
-  labelToggle.classList.toggle('on', compareLabels);
-});
-
-function checkReady() {
-  btnAnalyze.disabled = !(gtFile.files[0] && predFile.files[0]);
+function setMode(m) {
+  mode = m;
+  document.getElementById('tab-single').classList.toggle('active', m === 'single');
+  document.getElementById('tab-batch').classList.toggle('active', m === 'batch');
+  renderSidebar();
 }
 
-btnAnalyze.addEventListener('click', runAnalysis);
+function renderSidebar() {
+  const sb = document.getElementById('sidebar');
+  if (mode === 'single') {
+    sb.innerHTML = `
+      <div><h2>Ground Truth</h2>
+        <div class="upload-zone"><input type="file" id="gt-file" accept=".xml,.json">
+          <div class="uz-icon">📂</div><div class="uz-label">CVAT XML / COCO JSON / VOC XML</div>
+          <div class="uz-name" id="gt-name">Drop file or click to browse</div></div></div>
+      <div><h2>Annotator Prediction</h2>
+        <div class="upload-zone"><input type="file" id="pred-file" accept=".xml,.json">
+          <div class="uz-icon">🏷️</div><div class="uz-label">CVAT XML / COCO JSON / VOC XML</div>
+          <div class="uz-name" id="pred-name">Drop file or click to browse</div></div></div>
+      ${iouBlock()}${toggleBlock()}
+      <button class="btn-analyze" id="btn-analyze" disabled onclick="runSingle()">Run Analysis</button>`;
+    document.getElementById('gt-file').addEventListener('change', e => {
+      document.getElementById('gt-name').textContent = e.target.files[0]?.name || 'Drop file or click to browse';
+      checkSingleReady();
+    });
+    document.getElementById('pred-file').addEventListener('change', e => {
+      document.getElementById('pred-name').textContent = e.target.files[0]?.name || 'Drop file or click to browse';
+      checkSingleReady();
+    });
+  } else {
+    sb.innerHTML = `
+      <div><h2>Ground Truth</h2>
+        <div class="upload-zone"><input type="file" id="gt-file" accept=".xml,.json">
+          <div class="uz-icon">📂</div><div class="uz-label">Single ground truth file</div>
+          <div class="uz-name" id="gt-name">Drop file or click to browse</div></div></div>
+      <div><h2>Annotators</h2>
+        <div class="annotator-list" id="annotator-list"></div>
+        <label class="btn-add">
+          <input type="file" id="add-file-input" accept=".xml,.json" multiple>
+          + Add annotator file(s)
+        </label></div>
+      <div class="field-group">
+        <label>Session name</label>
+        <input type="text" id="session-name" placeholder="e.g. Week 3 Review" value="QC Report"></div>
+      ${iouBlock()}${toggleBlock()}
+      <button class="btn-analyze" id="btn-analyze" disabled onclick="runBatch()">Run Batch Analysis</button>`;
+    document.getElementById('gt-file').addEventListener('change', e => {
+      document.getElementById('gt-name').textContent = e.target.files[0]?.name || 'Drop file or click to browse';
+      checkBatchReady();
+    });
+    document.getElementById('add-file-input').addEventListener('change', e => {
+      Array.from(e.target.files).forEach(f => batchAnnotators.push({ name: '', file: f }));
+      e.target.value = '';
+      renderAnnotatorList();
+      checkBatchReady();
+    });
+    renderAnnotatorList();
+  }
+  bindIou(); bindToggle();
+}
 
-async function runAnalysis() {
-  content.innerHTML = '<div class="loading"><div class="spinner"></div>Analyzing annotations…</div>';
-  btnAnalyze.disabled = true;
+function iouBlock() {
+  return `<div class="field-group">
+    <label>Min IoU Threshold (%)<span id="iou-val">50%</span></label>
+    <input type="range" id="iou-slider" min="10" max="95" step="5" value="50">
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:2px">
+      <span>Lenient (10%)</span><span>Strict (95%)</span></div></div>`;
+}
 
+function toggleBlock() {
+  return `<div class="toggle-row"><label>Compare class labels</label>
+    <div class="toggle ${compareLabels?'on':''}" id="label-toggle"></div></div>`;
+}
+
+function bindIou() {
+  const sl = document.getElementById('iou-slider');
+  const vl = document.getElementById('iou-val');
+  sl.addEventListener('input', () => vl.textContent = sl.value + '%');
+}
+
+function bindToggle() {
+  document.getElementById('label-toggle').addEventListener('click', function() {
+    compareLabels = !compareLabels;
+    this.classList.toggle('on', compareLabels);
+  });
+}
+
+function renderAnnotatorList() {
+  const list = document.getElementById('annotator-list');
+  if (!list) return;
+  list.innerHTML = batchAnnotators.map((a, i) => `
+    <div class="annotator-item">
+      <span class="ai-num">${i+1}.</span>
+      <input class="ai-name-input" type="text" placeholder="Annotator name" value="${h(a.name)}"
+        oninput="batchAnnotators[${i}].name=this.value">
+      <span class="ai-file" title="${h(a.file.name)}">${h(a.file.name)}</span>
+      <button class="ai-remove" onclick="removeAnnotator(${i})">✕</button>
+    </div>`).join('');
+}
+
+function removeAnnotator(i) {
+  batchAnnotators.splice(i, 1);
+  renderAnnotatorList();
+  checkBatchReady();
+}
+
+function h(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function checkSingleReady() {
+  const gt = document.getElementById('gt-file');
+  const pred = document.getElementById('pred-file');
+  const btn = document.getElementById('btn-analyze');
+  if (btn) btn.disabled = !(gt?.files[0] && pred?.files[0]);
+}
+
+function checkBatchReady() {
+  const gt = document.getElementById('gt-file');
+  const btn = document.getElementById('btn-analyze');
+  if (btn) btn.disabled = !(gt?.files[0] && batchAnnotators.length > 0);
+}
+
+function iouVal() { return document.getElementById('iou-slider')?.value || 50; }
+
+async function runSingle() {
+  setLoading('Analyzing annotations…');
+  document.getElementById('btn-analyze').disabled = true;
   const fd = new FormData();
-  fd.append('gt_file', gtFile.files[0]);
-  fd.append('pred_file', predFile.files[0]);
-  fd.append('iou_threshold', iouSlider.value);
+  fd.append('gt_file', document.getElementById('gt-file').files[0]);
+  fd.append('pred_file', document.getElementById('pred-file').files[0]);
+  fd.append('iou_threshold', iouVal());
   fd.append('compare_labels', compareLabels ? 'true' : 'false');
-
   try {
     const res = await fetch('/analyze', { method: 'POST', body: fd });
     const data = await res.json();
-
-    if (data.error) {
-      content.innerHTML = `<div class="error-banner">⚠ ${data.error}</div>`;
-      return;
-    }
-
-    renderResults(data);
-  } catch(e) {
-    content.innerHTML = `<div class="error-banner">⚠ Network error: ${e.message}</div>`;
-  } finally {
-    btnAnalyze.disabled = false;
-  }
+    if (data.error) { showError(data.error); return; }
+    batchResults = [data];
+    destroyCharts();
+    document.getElementById('content').innerHTML = `
+      <div class="lb-header">
+        <div><h2>Analysis Results</h2></div>
+        <button class="btn-export" onclick="exportExcel()">⬇ Export Excel</button>
+      </div>` + detailHTML(data, '');
+    buildCharts(data, 'rc', 'dc');
+  } catch(e) { showError(e.message); }
+  finally { document.getElementById('btn-analyze').disabled = false; }
 }
 
-function metricBadge(val) {
-  if (val >= 80) return 'badge-good';
-  if (val >= 50) return 'badge-warn';
-  return 'badge-bad';
+async function runBatch() {
+  setLoading(`Analyzing ${batchAnnotators.length} annotator(s)…`);
+  document.getElementById('btn-analyze').disabled = true;
+  const fd = new FormData();
+  fd.append('gt_file', document.getElementById('gt-file').files[0]);
+  fd.append('iou_threshold', iouVal());
+  fd.append('compare_labels', compareLabels ? 'true' : 'false');
+  batchAnnotators.forEach((a, i) => {
+    fd.append('pred_files', a.file);
+    fd.append('annotator_names', a.name || `Annotator ${i+1}`);
+  });
+  try {
+    const res = await fetch('/analyze-batch', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.error) { showError(data.error); return; }
+    batchResults = data.results;
+    renderLeaderboard(data);
+  } catch(e) { showError(e.message); }
+  finally { document.getElementById('btn-analyze').disabled = false; }
 }
 
-function renderResults(d) {
-  Object.values(charts).forEach(c => c.destroy());
+function setLoading(msg) {
+  destroyCharts();
+  document.getElementById('content').innerHTML = `<div class="loading"><div class="spinner"></div>${msg}</div>`;
+}
+
+function showError(msg) {
+  document.getElementById('content').innerHTML = `<div class="error-banner">⚠ ${msg}</div>`;
+}
+
+function destroyCharts() {
+  Object.values(charts).forEach(c => { try { c.destroy(); } catch(e){} });
   charts = {};
+}
 
-  const frameRows = (d.frame_results || []).slice(0, 50).map(fr => `
-    <tr>
-      <td>${fr.frame_id}</td>
-      <td style="color:var(--accent)">${fr.tp}</td>
-      <td style="color:var(--danger)">${fr.fp}</td>
-      <td style="color:var(--warn)">${fr.fn}</td>
-      <td>${fr.mean_iou}%</td>
-    </tr>
-  `).join('');
+function scoreBadge(v) {
+  const cls = v>=80?'bg-good':v>=50?'bg-warn':'bg-bad';
+  return `<span class="badge-score ${cls}">${v.toFixed(1)}%</span>`;
+}
 
-  const labelRows = Object.entries(d.label_breakdown || {}).map(([lbl, s]) => `
-    <tr>
-      <td>${lbl}</td>
-      <td style="color:var(--accent)">${s.tp}</td>
-      <td style="color:var(--danger)">${s.fp}</td>
-      <td style="color:var(--warn)">${s.fn}</td>
-      <td><span class="badge ${metricBadge(s.precision)}">${s.precision}%</span></td>
-      <td><span class="badge ${metricBadge(s.recall)}">${s.recall}%</span></td>
-    </tr>
-  `).join('');
-
-  content.innerHTML = `
+function detailHTML(d, sfx) {
+  const frameRows = (d.frame_results||[]).slice(0,60).map(fr=>`
+    <tr><td>${h(fr.frame_id)}</td>
+    <td style="color:var(--accent)">${fr.tp}</td>
+    <td style="color:var(--danger)">${fr.fp}</td>
+    <td style="color:var(--warn)">${fr.fn}</td>
+    <td>${fr.mean_iou}%</td></tr>`).join('');
+  const labelRows = Object.entries(d.label_breakdown||{}).map(([lbl,s])=>`
+    <tr><td>${h(lbl)}</td>
+    <td style="color:var(--accent)">${s.tp}</td>
+    <td style="color:var(--danger)">${s.fp}</td>
+    <td style="color:var(--warn)">${s.fn}</td>
+    <td>${scoreBadge(s.precision)}</td>
+    <td>${scoreBadge(s.recall)}</td></tr>`).join('');
+  return `
     <div class="metrics-grid">
-      <div class="metric-card mc-precision">
-        <div class="mc-label">Precision</div>
-        <div class="mc-value">${d.precision}<span style="font-size:18px">%</span></div>
-        <div class="mc-sub">TP / (TP + FP)</div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${d.precision}%;background:var(--accent2)"></div></div>
-      </div>
-      <div class="metric-card mc-recall">
-        <div class="mc-label">Recall</div>
-        <div class="mc-value">${d.recall}<span style="font-size:18px">%</span></div>
-        <div class="mc-sub">TP / (TP + FN)</div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${d.recall}%;background:var(--accent)"></div></div>
-      </div>
-      <div class="metric-card mc-accuracy">
-        <div class="mc-label">Accuracy (F1)</div>
-        <div class="mc-value">${d.accuracy}<span style="font-size:18px">%</span></div>
-        <div class="mc-sub">Harmonic mean P·R</div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${d.accuracy}%;background:var(--warn)"></div></div>
-      </div>
-      <div class="metric-card mc-iou">
-        <div class="mc-label">Mean IoU</div>
-        <div class="mc-value">${d.mean_iou}<span style="font-size:18px">%</span></div>
-        <div class="mc-sub">Avg matched overlap</div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${d.mean_iou}%;background:#c084fc"></div></div>
-      </div>
+      <div class="metric-card mc-p"><div class="mc-label">Precision</div><div class="mc-value">${d.precision}<span style="font-size:14px">%</span></div><div class="mc-sub">TP / (TP+FP)</div><div class="progress-bar"><div class="progress-fill" style="width:${d.precision}%;background:var(--accent2)"></div></div></div>
+      <div class="metric-card mc-r"><div class="mc-label">Recall</div><div class="mc-value">${d.recall}<span style="font-size:14px">%</span></div><div class="mc-sub">TP / (TP+FN)</div><div class="progress-bar"><div class="progress-fill" style="width:${d.recall}%;background:var(--accent)"></div></div></div>
+      <div class="metric-card mc-a"><div class="mc-label">Accuracy (F1)</div><div class="mc-value">${d.accuracy}<span style="font-size:14px">%</span></div><div class="mc-sub">Harmonic P·R</div><div class="progress-bar"><div class="progress-fill" style="width:${d.accuracy}%;background:var(--warn)"></div></div></div>
+      <div class="metric-card mc-i"><div class="mc-label">Mean IoU</div><div class="mc-value">${d.mean_iou}<span style="font-size:14px">%</span></div><div class="mc-sub">Avg overlap</div><div class="progress-bar"><div class="progress-fill" style="width:${d.mean_iou}%;background:var(--purple)"></div></div></div>
     </div>
-
-    <div class="stat-row">
-      <div class="stat-pill"><span class="dot dot-tp"></span>TP: ${d.tp}</div>
-      <div class="stat-pill"><span class="dot dot-fp"></span>FP: ${d.fp}</div>
-      <div class="stat-pill"><span class="dot dot-fn"></span>FN: ${d.fn}</div>
-      <div class="stat-pill" style="margin-left:auto">GT: ${d.total_gt} boxes <span class="fmt-tag">${d.format_gt}</span></div>
-      <div class="stat-pill">Pred: ${d.total_pred} boxes <span class="fmt-tag">${d.format_pred}</span></div>
-      <div class="stat-pill">IoU ≥ ${d.iou_threshold}%</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+      <span class="stat-pill"><span class="dot dot-tp"></span>TP: ${d.tp}</span>
+      <span class="stat-pill"><span class="dot dot-fp"></span>FP: ${d.fp}</span>
+      <span class="stat-pill"><span class="dot dot-fn"></span>FN: ${d.fn}</span>
+      <span class="stat-pill" style="margin-left:auto">GT: ${d.total_gt} · Pred: ${d.total_pred}</span>
     </div>
-
     <div class="chart-grid">
-      <div class="chart-card">
-        <h3>Metric Overview</h3>
-        <div style="position:relative;height:200px">
-          <canvas id="radar-chart" role="img" aria-label="Radar chart showing Precision, Recall, Accuracy and IoU scores."></canvas>
-        </div>
-      </div>
-      <div class="chart-card">
-        <h3>TP / FP / FN Breakdown</h3>
-        <div style="position:relative;height:200px">
-          <canvas id="doughnut-chart" role="img" aria-label="Doughnut chart showing distribution of TP, FP and FN."></canvas>
-        </div>
+      <div class="chart-card"><h4>Metric overview</h4><div style="position:relative;height:180px"><canvas id="rc${sfx}" role="img" aria-label="Radar showing Precision, Recall, Accuracy, Mean IoU."></canvas></div></div>
+      <div class="chart-card"><h4>TP / FP / FN</h4><div style="position:relative;height:180px"><canvas id="dc${sfx}" role="img" aria-label="Doughnut showing TP FP FN."></canvas></div></div>
+    </div>
+    ${Object.keys(d.label_breakdown||{}).length ? `
+    <div class="section-title" style="margin-bottom:8px">Per-class breakdown</div>
+    <div class="lb-table-wrap" style="margin-bottom:20px"><table class="lb-table">
+      <thead><tr><th>Class</th><th>TP</th><th>FP</th><th>FN</th><th>Precision</th><th>Recall</th></tr></thead>
+      <tbody>${labelRows}</tbody></table></div>` : ''}
+    <div class="section-title" style="margin-bottom:8px">Per-frame results ${(d.frame_results||[]).length>60?'(first 60)':''}</div>
+    <div class="lb-table-wrap"><table class="lb-table">
+      <thead><tr><th>Frame</th><th>TP</th><th>FP</th><th>FN</th><th>Mean IoU</th></tr></thead>
+      <tbody>${frameRows}</tbody></table></div>`;
+}
+
+function buildCharts(d, rid, did) {
+  const re = document.getElementById(rid);
+  if (re) charts[rid] = new Chart(re, { type:'radar',
+    data:{ labels:['Precision','Recall','Accuracy','Mean IoU'],
+      datasets:[{ data:[d.precision,d.recall,d.accuracy,d.mean_iou],
+        backgroundColor:'rgba(0,200,160,0.12)',borderColor:'#00c8a0',borderWidth:2,
+        pointBackgroundColor:'#00c8a0',pointRadius:4 }] },
+    options:{ responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{ r:{ min:0,max:100,
+        ticks:{stepSize:25,color:'#6b7b8e',font:{size:9},backdropColor:'transparent'},
+        grid:{color:'#2a3240'},pointLabels:{color:'#6b7b8e',font:{size:10}},
+        angleLines:{color:'#2a3240'} } } } });
+  const de = document.getElementById(did);
+  if (de) charts[did] = new Chart(de, { type:'doughnut',
+    data:{ labels:['True Positive','False Positive','False Negative'],
+      datasets:[{ data:[d.tp,d.fp,d.fn],
+        backgroundColor:['#00c8a0','#ff5f6d','#ffb347'],borderWidth:0,hoverOffset:4 }] },
+    options:{ responsive:true,maintainAspectRatio:false,cutout:'65%',
+      plugins:{ legend:{ position:'right',
+        labels:{color:'#6b7b8e',font:{size:11},boxWidth:10,padding:10} } } } });
+}
+
+function renderLeaderboard(data) {
+  destroyCharts();
+  const results = data.results || [];
+  const errors = data.errors || [];
+  const sorted = [...results].sort((a,b) => b.accuracy - a.accuracy);
+  const medals = ['🥇','🥈','🥉'];
+  const rows = sorted.map((r,i) => `
+    <tr onclick="showDetail('${h(r.annotator)}')">
+      <td class="rank">${medals[i]||(i+1)}</td>
+      <td class="name-cell">${h(r.annotator)}</td>
+      <td>${scoreBadge(r.precision)}</td><td>${scoreBadge(r.recall)}</td>
+      <td>${scoreBadge(r.accuracy)}</td><td>${scoreBadge(r.mean_iou)}</td>
+      <td style="color:var(--accent);font-family:var(--mono)">${r.tp}</td>
+      <td style="color:var(--danger);font-family:var(--mono)">${r.fp}</td>
+      <td style="color:var(--warn);font-family:var(--mono)">${r.fn}</td>
+    </tr>`).join('');
+
+  const errHTML = errors.map(e=>`<div class="warn-banner">⚠ ${h(e)}</div>`).join('');
+
+  document.getElementById('content').innerHTML = `
+    ${errHTML}
+    <div class="lb-header">
+      <div><h2>Team Leaderboard</h2>
+        <div class="lb-meta">${results.length} annotator(s) · IoU ≥ ${iouVal()}% · Click a row for details</div></div>
+      <button class="btn-export" id="export-btn" onclick="exportExcel()">⬇ Export Excel</button>
+    </div>
+    <div class="lb-table-wrap">
+      <table class="lb-table">
+        <thead><tr><th>#</th><th>Annotator</th><th>Precision</th><th>Recall</th><th>Accuracy/F1</th><th>Mean IoU</th><th>TP</th><th>FP</th><th>FN</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="section-title" style="margin-bottom:12px">Team comparison</div>
+    <div class="detail-panel" style="margin-bottom:24px">
+      <div style="position:relative;height:260px">
+        <canvas id="team-bar" role="img" aria-label="Grouped bar chart comparing all annotators."></canvas>
       </div>
     </div>
+    <div id="detail-area"></div>`;
 
-    ${Object.keys(d.label_breakdown).length > 0 ? `
-    <div class="section">
-      <div class="section-title">Per-Class Breakdown</div>
-      <div class="chart-card" style="padding-bottom:4px">
-        <table class="data-table">
-          <thead><tr><th>Class</th><th>TP</th><th>FP</th><th>FN</th><th>Precision</th><th>Recall</th></tr></thead>
-          <tbody>${labelRows}</tbody>
-        </table>
-      </div>
-    </div>` : ''}
-
-    <div class="section">
-      <div class="section-title">Per-Frame Results ${d.frame_results.length > 50 ? '(first 50)' : ''}</div>
-      <div class="chart-card" style="padding-bottom:4px">
-        <table class="data-table">
-          <thead><tr><th>Frame</th><th>TP</th><th>FP</th><th>FN</th><th>Mean IoU</th></tr></thead>
-          <tbody>${frameRows}</tbody>
-        </table>
-      </div>
-    </div>
-  `;
-
-  // Radar chart
-  charts.radar = new Chart(document.getElementById('radar-chart'), {
-    type: 'radar',
-    data: {
-      labels: ['Precision', 'Recall', 'Accuracy', 'Mean IoU'],
-      datasets: [{
-        data: [d.precision, d.recall, d.accuracy, d.mean_iou],
-        backgroundColor: 'rgba(0, 200, 160, 0.12)',
-        borderColor: '#00c8a0',
-        borderWidth: 2,
-        pointBackgroundColor: '#00c8a0',
-        pointRadius: 4,
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        r: {
-          min: 0, max: 100,
-          ticks: { stepSize: 25, color: '#6b7b8e', font: { size: 9 }, backdropColor: 'transparent' },
-          grid: { color: '#2a3240' },
-          pointLabels: { color: '#6b7b8e', font: { size: 10 } },
-          angleLines: { color: '#2a3240' }
-        }
-      }
-    }
-  });
-
-  // Doughnut chart
-  charts.doughnut = new Chart(document.getElementById('doughnut-chart'), {
-    type: 'doughnut',
-    data: {
-      labels: ['True Positive', 'False Positive', 'False Negative'],
-      datasets: [{
-        data: [d.tp, d.fp, d.fn],
-        backgroundColor: ['#00c8a0', '#ff5f6d', '#ffb347'],
-        borderWidth: 0,
-        hoverOffset: 4,
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      cutout: '68%',
-      plugins: {
-        legend: {
-          position: 'right',
-          labels: { color: '#6b7b8e', font: { size: 11 }, boxWidth: 10, padding: 12 }
-        }
-      }
-    }
+  const labels = sorted.map(r => r.annotator);
+  charts['team-bar'] = new Chart(document.getElementById('team-bar'), {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label:'Precision', data:sorted.map(r=>r.precision), backgroundColor:'#4e9cff66', borderColor:'#4e9cff', borderWidth:1 },
+      { label:'Recall', data:sorted.map(r=>r.recall), backgroundColor:'#00c8a066', borderColor:'#00c8a0', borderWidth:1 },
+      { label:'Accuracy/F1', data:sorted.map(r=>r.accuracy), backgroundColor:'#ffb34766', borderColor:'#ffb347', borderWidth:1 },
+      { label:'Mean IoU', data:sorted.map(r=>r.mean_iou), backgroundColor:'#c084fc66', borderColor:'#c084fc', borderWidth:1 },
+    ]},
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:'#6b7b8e', font:{size:11}, boxWidth:12 } } },
+      scales:{
+        x:{ ticks:{color:'#6b7b8e',font:{size:11}}, grid:{color:'#2a3240'} },
+        y:{ min:0, max:100, ticks:{color:'#6b7b8e',font:{size:10},callback:v=>v+'%'}, grid:{color:'#2a3240'} }
+      }}
   });
 }
+
+function showDetail(name) {
+  const r = batchResults?.find(x => x.annotator === name);
+  if (!r) return;
+  const area = document.getElementById('detail-area');
+  if (!area) return;
+  const sfx = name.replace(/[^a-z0-9]/gi,'_');
+  ['rc','dc'].forEach(k => { const key=k+sfx; if(charts[key]){try{charts[key].destroy();}catch(e){}delete charts[key];} });
+  area.innerHTML = `<div class="detail-panel"><h3>📋 ${h(name)}</h3>${detailHTML(r, sfx)}</div>`;
+  buildCharts(r, 'rc'+sfx, 'dc'+sfx);
+  area.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+async function exportExcel() {
+  if (!batchResults?.length) return;
+  const btn = document.getElementById('export-btn') || document.querySelector('.btn-export');
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+  try {
+    const sessionName = document.getElementById('session-name')?.value || 'QC Report';
+    const res = await fetch('/export-excel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ results: batchResults, iou_threshold: iouVal(), session_name: sessionName })
+    });
+    if (!res.ok) { const e = await res.json(); alert('Export error: '+(e.error||'unknown')); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const cd = res.headers.get('Content-Disposition');
+    a.download = cd?.match(/filename="?([^"]+)"?/)?.[1] || 'CVAT_QC_Report.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) { alert('Export error: '+e.message); }
+  finally { if (btn) { btn.disabled = false; btn.innerHTML = '⬇ Export Excel'; } }
+}
+
+// Init
+setMode('single');
 </script>
 </body>
 </html>
