@@ -217,8 +217,9 @@ def compute_metrics(
     Only frames that appear in BOTH the GT and the annotator's export
     are scored. GT-only frames are excluded — this handles Random-per-job
     GT setups where each annotator only saw a subset of the GT pool.
-    Pred-only frames (annotator drew boxes on frames not in GT) still
-    contribute False Positives since they shouldn't be there.
+    Pred-only frames (annotator drew boxes on frames not in GT) are
+    completely ignored — they are part of the annotator's normal job,
+    just not part of the QC sample.
     """
 
     gt_frame_ids  = set(gt_frames.keys())
@@ -292,19 +293,11 @@ def compute_metrics(
         total_fn += fr.fn
         frame_results.append(fr)
 
-    # ── Pred-only frames contribute FPs (annotator shouldn't have boxes there) ──
-    for fid in sorted(pred_only_frames):
-        pred = pred_frames[fid]
-        if not pred.boxes:
-            continue
-        fr = FrameResult(frame_id=fid, fp=len(pred.boxes))
-        for pb in pred.boxes:
-            lbl = pb.label
-            if lbl not in label_stats:
-                label_stats[lbl] = {"tp": 0, "fp": 0, "fn": 0}
-            label_stats[lbl]["fp"] += 1
-        total_fp += fr.fp
-        frame_results.append(fr)
+    # ── Pred-only frames are ignored entirely ────────────────────────────────
+    # These are frames the annotator worked on that weren't part of the GT
+    # sample. In a Random-per-job GT setup this is expected — the annotator
+    # was supposed to annotate those frames, they just aren't being evaluated.
+    # Counting them as FPs would unfairly destroy Precision scores.
 
     # ── Final metrics ─────────────────────────────────────────────────────
     precision = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0.0
