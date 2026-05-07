@@ -53,6 +53,29 @@ def compute_iou(a: BBox, b: BBox) -> float:
 
 # ── Parsers ──────────────────────────────────────────────────────────────────
 
+
+def _extract_cvat_annotator(root) -> str:
+    """
+    Pull the annotator name/email from CVAT XML metadata.
+    Priority: assignee username -> assignee email -> owner username -> owner email
+    """
+    meta = root.find("meta")
+    if meta is None:
+        return ""
+    for tag in ("job", "task"):
+        container = meta.find(tag)
+        if container is None:
+            continue
+        for person_tag in ("assignee", "owner"):
+            person = container.find(person_tag)
+            if person is None:
+                continue
+            for field in ("username", "email"):
+                val = (person.findtext(field) or "").strip()
+                if val and val.lower() not in ("", "null", "none"):
+                    return val
+    return ""
+
 def parse_cvat_xml(filepath: str) -> Dict[str, FrameAnnotations]:
     tree = ET.parse(filepath)
     root = tree.getroot()
@@ -87,7 +110,8 @@ def parse_cvat_xml(filepath: str) -> Dict[str, FrameAnnotations]:
             attrs = {a.get("name"): a.text for a in box.findall("attribute")}
             frames[frame].boxes.append(BBox(label=label, x=xtl, y=ytl,
                                             w=xbr - xtl, h=ybr - ytl, attributes=attrs))
-    return frames
+    annotator_name = _extract_cvat_annotator(root)
+    return frames, annotator_name
 
 
 def parse_coco_json(filepath: str) -> Dict[str, FrameAnnotations]:
@@ -105,7 +129,7 @@ def parse_coco_json(filepath: str) -> Dict[str, FrameAnnotations]:
         label = id_to_label.get(ann.get("category_id", 0), "unknown")
         frames[fid].boxes.append(BBox(label=label, x=bbox[0], y=bbox[1],
                                       w=bbox[2], h=bbox[3]))
-    return frames
+    return frames, ""
 
 
 def parse_voc_xml(filepath: str) -> Dict[str, FrameAnnotations]:
@@ -124,24 +148,30 @@ def parse_voc_xml(filepath: str) -> Dict[str, FrameAnnotations]:
         ymax = float(bndbox.findtext("ymax", 0))
         fa.boxes.append(BBox(label=label, x=xmin, y=ymin,
                              w=xmax - xmin, h=ymax - ymin))
-    return {filename: fa}
+    return {filename: fa}, ""
 
 
-def detect_and_parse(filepath: str) -> Tuple[Dict[str, FrameAnnotations], str]:
+def detect_and_parse(filepath: str) -> Tuple[Dict[str, FrameAnnotations], str, str]:
+    """Returns (frames, format_string, annotator_name)"""
     ext = os.path.splitext(filepath)[1].lower()
     if ext == ".json":
-        return parse_coco_json(filepath), "COCO JSON"
+        frames, name = parse_coco_json(filepath)
+        return frames, "COCO JSON", name
     if ext == ".xml":
         tree = ET.parse(filepath)
         root = tree.getroot()
         tag = root.tag.lower()
         if tag == "annotations" and root.find("image") is not None:
-            return parse_cvat_xml(filepath), "CVAT XML"
+            frames, name = parse_cvat_xml(filepath)
+            return frames, "CVAT XML", name
         if tag == "annotations" and root.find("track") is not None:
-            return parse_cvat_xml(filepath), "CVAT XML (Track)"
+            frames, name = parse_cvat_xml(filepath)
+            return frames, "CVAT XML (Track)", name
         if tag == "annotation" and root.find("object") is not None:
-            return parse_voc_xml(filepath), "Pascal VOC XML"
-        return parse_cvat_xml(filepath), "CVAT XML"
+            frames, name = parse_voc_xml(filepath)
+            return frames, "Pascal VOC XML", name
+        frames, name = parse_cvat_xml(filepath)
+        return frames, "CVAT XML", name
     raise ValueError(f"Unsupported file format: {ext}")
 
 

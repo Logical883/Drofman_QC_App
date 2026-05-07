@@ -52,6 +52,7 @@ def serialize_report(report, annotator_name):
         "pred_only_frames": report.pred_only_frames,
         "format_gt": report.format_gt,
         "format_pred": report.format_pred,
+        "detected_name": annotator_name,
         "frame_results": frame_data,
         "label_breakdown": report.label_breakdown,
     }
@@ -82,14 +83,14 @@ def analyze():
     try:
         gt_file.save(gt_path)
         pred_file.save(pred_path)
-        gt_frames, gt_fmt = detect_and_parse(gt_path)
-        pred_frames, pred_fmt = detect_and_parse(pred_path)
+        gt_frames, gt_fmt, _ = detect_and_parse(gt_path)
+        pred_frames, pred_fmt, detected_name = detect_and_parse(pred_path)
         report = compute_metrics(gt_frames, pred_frames,
                                  iou_threshold=iou_threshold,
                                  compare_labels=compare_labels)
         report.format_gt = gt_fmt
         report.format_pred = pred_fmt
-        return jsonify(serialize_report(report, "Annotator"))
+        return jsonify(serialize_report(report, detected_name or "Annotator"))
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
@@ -117,7 +118,7 @@ def analyze_batch():
 
     try:
         gt_file.save(gt_path)
-        gt_frames, gt_fmt = detect_and_parse(gt_path)
+        gt_frames, gt_fmt, _ = detect_and_parse(gt_path)
         results = []
         errors = []
 
@@ -130,7 +131,10 @@ def analyze_batch():
                                      f"{uid}_pred{i}_{secure_filename(pf.filename)}")
             try:
                 pf.save(pred_path)
-                pred_frames, pred_fmt = detect_and_parse(pred_path)
+                pred_frames, pred_fmt, detected_name = detect_and_parse(pred_path)
+                # Auto-fill name from file if user left the field blank
+                if not annotator_names[i].strip() and detected_name:
+                    name = detected_name
                 report = compute_metrics(gt_frames, pred_frames,
                                          iou_threshold=iou_threshold,
                                          compare_labels=compare_labels)

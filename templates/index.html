@@ -215,10 +215,31 @@ function renderSidebar() {
       checkBatchReady();
     });
     document.getElementById('add-file-input').addEventListener('change', e => {
-      Array.from(e.target.files).forEach(f => batchAnnotators.push({ name: '', file: f }));
+      const files = Array.from(e.target.files);
+      let pending = files.length;
+      files.forEach(f => {
+        const entry = { name: '', file: f };
+        batchAnnotators.push(entry);
+        // Try to sniff annotator name from CVAT XML
+        if (f.name.endsWith('.xml')) {
+          const reader = new FileReader();
+          reader.onload = ev => {
+            try {
+              const parser = new DOMParser();
+              const xml = parser.parseFromString(ev.target.result, 'text/xml');
+              const name = sniffAnnotatorName(xml);
+              if (name) entry.name = name;
+            } catch(e) {}
+            pending--;
+            if (pending === 0) { renderAnnotatorList(); checkBatchReady(); }
+          };
+          reader.readAsText(f);
+        } else {
+          pending--;
+          if (pending === 0) { renderAnnotatorList(); checkBatchReady(); }
+        }
+      });
       e.target.value = '';
-      renderAnnotatorList();
-      checkBatchReady();
     });
     renderAnnotatorList();
   }
@@ -251,6 +272,25 @@ function bindToggle() {
   });
 }
 
+
+function sniffAnnotatorName(xml) {
+  // Priority: assignee username -> assignee email -> owner username -> owner email
+  for (const container of ['job', 'task']) {
+    const c = xml.querySelector(container);
+    if (!c) continue;
+    for (const person of ['assignee', 'owner']) {
+      const p = c.querySelector(person);
+      if (!p) continue;
+      for (const field of ['username', 'email']) {
+        const el = p.querySelector(field);
+        const val = el ? el.textContent.trim() : '';
+        if (val && !['', 'null', 'none'].includes(val.toLowerCase())) return val;
+      }
+    }
+  }
+  return '';
+}
+
 function renderAnnotatorList() {
   const list = document.getElementById('annotator-list');
   if (!list) return;
@@ -258,7 +298,9 @@ function renderAnnotatorList() {
     <div class="annotator-item">
       <span class="ai-num">${i+1}.</span>
       <input class="ai-name-input" type="text" placeholder="Annotator name" value="${h(a.name)}"
-        oninput="batchAnnotators[${i}].name=this.value">
+        oninput="batchAnnotators[${i}].name=this.value"
+        style="${a.name ? 'color:var(--accent)' : ''}">
+      ${a.name ? '<span title="Auto-detected from file" style="font-size:10px;color:var(--accent);flex-shrink:0">✦</span>' : ''}
       <span class="ai-file" title="${h(a.file.name)}">${h(a.file.name)}</span>
       <button class="ai-remove" onclick="removeAnnotator(${i})">✕</button>
     </div>`).join('');
