@@ -56,8 +56,8 @@ def compute_iou(a: BBox, b: BBox) -> float:
 
 def _extract_cvat_annotator(root) -> str:
     """
-    Pull the annotator name/email from CVAT XML metadata.
-    Priority: assignee username -> assignee email -> owner username -> owner email
+    Pull only the assignee email from CVAT XML metadata.
+    Returns empty string if assignee is not set.
     """
     meta = root.find("meta")
     if meta is None:
@@ -66,14 +66,12 @@ def _extract_cvat_annotator(root) -> str:
         container = meta.find(tag)
         if container is None:
             continue
-        for person_tag in ("assignee", "owner"):
-            person = container.find(person_tag)
-            if person is None:
-                continue
-            for field in ("username", "email"):
-                val = (person.findtext(field) or "").strip()
-                if val and val.lower() not in ("", "null", "none"):
-                    return val
+        assignee = container.find("assignee")
+        if assignee is None:
+            continue
+        email = (assignee.findtext("email") or "").strip()
+        if email and email.lower() not in ("", "null", "none"):
+            return email
     return ""
 
 def parse_cvat_xml(filepath: str) -> Dict[str, FrameAnnotations]:

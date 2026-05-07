@@ -274,19 +274,15 @@ function bindToggle() {
 
 
 function sniffAnnotatorName(xml) {
-  // Priority: assignee username -> assignee email -> owner username -> owner email
+  // Only use assignee email
   for (const container of ['job', 'task']) {
     const c = xml.querySelector(container);
     if (!c) continue;
-    for (const person of ['assignee', 'owner']) {
-      const p = c.querySelector(person);
-      if (!p) continue;
-      for (const field of ['username', 'email']) {
-        const el = p.querySelector(field);
-        const val = el ? el.textContent.trim() : '';
-        if (val && !['', 'null', 'none'].includes(val.toLowerCase())) return val;
-      }
-    }
+    const assignee = c.querySelector('assignee');
+    if (!assignee) continue;
+    const emailEl = assignee.querySelector('email');
+    const email = emailEl ? emailEl.textContent.trim() : '';
+    if (email && !['', 'null', 'none'].includes(email.toLowerCase())) return email;
   }
   return '';
 }
