@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Drofman Annotation QC Metrics Analyzer</title>
+<title>CVAT QC Metrics Analyzer</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
@@ -137,7 +137,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
   <div class="header-logo">
     <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1.5" fill="#0d0f12"/><rect x="9" y="1" width="6" height="6" rx="1.5" fill="#0d0f12" opacity="0.5"/><rect x="1" y="9" width="6" height="6" rx="1.5" fill="#0d0f12" opacity="0.5"/><rect x="9" y="9" width="6" height="6" rx="1.5" fill="#0d0f12" opacity="0.3"/></svg>
   </div>
-  <h1>Drofman Annotation QC Metrics Analyzer</h1>
+  <h1>CVAT QC Metrics Analyzer</h1>
   <div class="header-right">
     <div class="mode-tabs">
       <button class="mode-tab active" id="tab-single" onclick="setMode('single')">Single Annotator</button>
@@ -376,7 +376,8 @@ function detailHTML(d, sfx) {
       <span class="stat-pill"><span class="dot dot-tp"></span>TP: ${d.tp}</span>
       <span class="stat-pill"><span class="dot dot-fp"></span>FP: ${d.fp}</span>
       <span class="stat-pill"><span class="dot dot-fn"></span>FN: ${d.fn}</span>
-      <span class="stat-pill" style="margin-left:auto">GT: ${d.total_gt} · Pred: ${d.total_pred}</span>
+      <span class="stat-pill" style="margin-left:auto">GT boxes: ${d.total_gt} · Pred: ${d.total_pred}</span>
+      ${d.gt_only_frames > 0 ? `<span class="stat-pill" style="border-color:var(--warn);color:var(--warn)" title="GT frames not in annotator job - excluded from scoring">⚠ ${d.gt_only_frames} GT frame(s) skipped</span>` : `<span class="stat-pill" style="border-color:var(--accent);color:var(--accent)">✓ All GT frames matched</span>`}
     </div>
     <div class="chart-grid">
       <div class="chart-card"><h4>Metric overview</h4><div style="position:relative;height:180px"><canvas id="rc${sfx}" role="img" aria-label="Radar showing Precision, Recall, Accuracy, Mean IoU."></canvas></div></div>

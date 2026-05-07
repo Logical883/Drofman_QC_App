@@ -1,6 +1,10 @@
 """
 CVAT QC Metrics Calculator
 Supports: CVAT XML (1.1), COCO JSON, Pascal VOC XML
+
+Smart frame matching: only scores frames that exist in BOTH the ground
+truth and the annotator's export. This handles Random-per-job GT setups
+where each annotator only sees a subset of the full GT frame pool.
 """
 import xml.etree.ElementTree as ET
 import json
@@ -50,7 +54,6 @@ def compute_iou(a: BBox, b: BBox) -> float:
 # ── Parsers ──────────────────────────────────────────────────────────────────
 
 def parse_cvat_xml(filepath: str) -> Dict[str, FrameAnnotations]:
-    """Parse CVAT for Images XML 1.1 format."""
     tree = ET.parse(filepath)
     root = tree.getroot()
     frames: Dict[str, FrameAnnotations] = {}
@@ -65,15 +68,10 @@ def parse_cvat_xml(filepath: str) -> Dict[str, FrameAnnotations]:
             xbr = float(box.get("xbr", 0))
             ybr = float(box.get("ybr", 0))
             attrs = {a.get("name"): a.text for a in box.findall("attribute")}
-            fa.boxes.append(BBox(
-                label=label,
-                x=xtl, y=ytl,
-                w=xbr - xtl, h=ybr - ytl,
-                attributes=attrs
-            ))
+            fa.boxes.append(BBox(label=label, x=xtl, y=ytl,
+                                 w=xbr - xtl, h=ybr - ytl, attributes=attrs))
         frames[fid] = fa
 
-    # Also handle track-based format
     for track in root.findall("track"):
         label = track.get("label", "")
         for box in track.findall("box"):
@@ -87,25 +85,17 @@ def parse_cvat_xml(filepath: str) -> Dict[str, FrameAnnotations]:
             xbr = float(box.get("xbr", 0))
             ybr = float(box.get("ybr", 0))
             attrs = {a.get("name"): a.text for a in box.findall("attribute")}
-            frames[frame].boxes.append(BBox(
-                label=label,
-                x=xtl, y=ytl,
-                w=xbr - xtl, h=ybr - ytl,
-                attributes=attrs
-            ))
-
+            frames[frame].boxes.append(BBox(label=label, x=xtl, y=ytl,
+                                            w=xbr - xtl, h=ybr - ytl, attributes=attrs))
     return frames
 
 
 def parse_coco_json(filepath: str) -> Dict[str, FrameAnnotations]:
-    """Parse COCO JSON format (standard CVAT COCO export)."""
     with open(filepath) as f:
         data = json.load(f)
-
     id_to_label = {c["id"]: c["name"] for c in data.get("categories", [])}
     id_to_image = {img["id"]: str(img["id"]) for img in data.get("images", [])}
     frames: Dict[str, FrameAnnotations] = {}
-
     for ann in data.get("annotations", []):
         img_id = ann["image_id"]
         fid = id_to_image.get(img_id, str(img_id))
@@ -113,22 +103,16 @@ def parse_coco_json(filepath: str) -> Dict[str, FrameAnnotations]:
             frames[fid] = FrameAnnotations(frame_id=fid)
         bbox = ann.get("bbox", [0, 0, 0, 0])
         label = id_to_label.get(ann.get("category_id", 0), "unknown")
-        frames[fid].boxes.append(BBox(
-            label=label,
-            x=bbox[0], y=bbox[1],
-            w=bbox[2], h=bbox[3]
-        ))
-
+        frames[fid].boxes.append(BBox(label=label, x=bbox[0], y=bbox[1],
+                                      w=bbox[2], h=bbox[3]))
     return frames
 
 
 def parse_voc_xml(filepath: str) -> Dict[str, FrameAnnotations]:
-    """Parse Pascal VOC XML format."""
     tree = ET.parse(filepath)
     root = tree.getroot()
     filename = root.findtext("filename", default=os.path.basename(filepath))
     fa = FrameAnnotations(frame_id=filename)
-
     for obj in root.findall("object"):
         label = obj.findtext("name", default="unknown")
         bndbox = obj.find("bndbox")
@@ -138,22 +122,15 @@ def parse_voc_xml(filepath: str) -> Dict[str, FrameAnnotations]:
         ymin = float(bndbox.findtext("ymin", 0))
         xmax = float(bndbox.findtext("xmax", 0))
         ymax = float(bndbox.findtext("ymax", 0))
-        fa.boxes.append(BBox(
-            label=label,
-            x=xmin, y=ymin,
-            w=xmax - xmin, h=ymax - ymin
-        ))
-
+        fa.boxes.append(BBox(label=label, x=xmin, y=ymin,
+                             w=xmax - xmin, h=ymax - ymin))
     return {filename: fa}
 
 
 def detect_and_parse(filepath: str) -> Tuple[Dict[str, FrameAnnotations], str]:
-    """Auto-detect format and parse."""
     ext = os.path.splitext(filepath)[1].lower()
-
     if ext == ".json":
         return parse_coco_json(filepath), "COCO JSON"
-
     if ext == ".xml":
         tree = ET.parse(filepath)
         root = tree.getroot()
@@ -165,7 +142,6 @@ def detect_and_parse(filepath: str) -> Tuple[Dict[str, FrameAnnotations], str]:
         if tag == "annotation" and root.find("object") is not None:
             return parse_voc_xml(filepath), "Pascal VOC XML"
         return parse_cvat_xml(filepath), "CVAT XML"
-
     raise ValueError(f"Unsupported file format: {ext}")
 
 
@@ -187,7 +163,7 @@ class MetricsReport:
     fn: int
     precision: float
     recall: float
-    accuracy: float   # mAP / mean IoU
+    accuracy: float
     mean_iou: float
     iou_threshold: float
     frame_results: List[FrameResult]
@@ -196,6 +172,9 @@ class MetricsReport:
     total_pred: int
     format_gt: str
     format_pred: str
+    matched_frames: int        # frames present in both GT and pred
+    gt_only_frames: int        # GT frames the annotator never saw (excluded)
+    pred_only_frames: int      # frames annotator did that aren't in GT
 
 
 def compute_metrics(
@@ -205,25 +184,40 @@ def compute_metrics(
     compare_labels: bool = True,
 ) -> MetricsReport:
     """
-    Match predictions to ground truth per frame using greedy IoU matching.
+    Smart intersection-based scoring.
+
+    Only frames that appear in BOTH the GT and the annotator's export
+    are scored. GT-only frames are excluded — this handles Random-per-job
+    GT setups where each annotator only saw a subset of the GT pool.
+    Pred-only frames (annotator drew boxes on frames not in GT) still
+    contribute False Positives since they shouldn't be there.
     """
+
+    gt_frame_ids  = set(gt_frames.keys())
+    pred_frame_ids = set(pred_frames.keys())
+
+    # Frames in both — these are the ones we can fairly score
+    shared_frames = gt_frame_ids & pred_frame_ids
+
+    # GT frames the annotator never saw — excluded from scoring entirely
+    gt_only_frames = gt_frame_ids - pred_frame_ids
+
+    # Frames annotator submitted that have no GT counterpart — pure FP frames
+    pred_only_frames = pred_frame_ids - gt_frame_ids
+
     all_iou_scores = []
     frame_results = []
     label_stats: Dict[str, Dict] = {}
-
     total_tp = total_fp = total_fn = 0
 
-    all_frame_ids = set(gt_frames.keys()) | set(pred_frames.keys())
-
-    for fid in sorted(all_frame_ids):
-        gt = gt_frames.get(fid, FrameAnnotations(frame_id=fid))
-        pred = pred_frames.get(fid, FrameAnnotations(frame_id=fid))
-
+    # ── Score shared frames ───────────────────────────────────────────────
+    for fid in sorted(shared_frames):
+        gt  = gt_frames[fid]
+        pred = pred_frames[fid]
         fr = FrameResult(frame_id=fid)
         matched_gt = set()
         matched_pred = set()
 
-        # Build IoU matrix
         iou_matrix = []
         for pi, pb in enumerate(pred.boxes):
             for gi, gb in enumerate(gt.boxes):
@@ -232,7 +226,6 @@ def compute_metrics(
                 else:
                     iou = compute_iou(pb, gb)
                 iou_matrix.append((iou, pi, gi))
-
         iou_matrix.sort(reverse=True)
 
         for iou, pi, gi in iou_matrix:
@@ -244,19 +237,14 @@ def compute_metrics(
                 fr.tp += 1
                 fr.iou_scores.append(iou)
                 all_iou_scores.append(iou)
-
-                # Per-label stats
                 lbl = pred.boxes[pi].label
                 if lbl not in label_stats:
                     label_stats[lbl] = {"tp": 0, "fp": 0, "fn": 0}
                 label_stats[lbl]["tp"] += 1
 
-        fp_count = len(pred.boxes) - len(matched_pred)
-        fn_count = len(gt.boxes) - len(matched_gt)
-        fr.fp = fp_count
-        fr.fn = fn_count
+        fr.fp = len(pred.boxes) - len(matched_pred)
+        fr.fn = len(gt.boxes) - len(matched_gt)
 
-        # Per-label FP/FN
         for pi, pb in enumerate(pred.boxes):
             if pi not in matched_pred:
                 lbl = pb.label
@@ -276,24 +264,38 @@ def compute_metrics(
         total_fn += fr.fn
         frame_results.append(fr)
 
-    precision = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0.0
-    recall = total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 0.0
-    mean_iou = sum(all_iou_scores) / len(all_iou_scores) if all_iou_scores else 0.0
+    # ── Pred-only frames contribute FPs (annotator shouldn't have boxes there) ──
+    for fid in sorted(pred_only_frames):
+        pred = pred_frames[fid]
+        if not pred.boxes:
+            continue
+        fr = FrameResult(frame_id=fid, fp=len(pred.boxes))
+        for pb in pred.boxes:
+            lbl = pb.label
+            if lbl not in label_stats:
+                label_stats[lbl] = {"tp": 0, "fp": 0, "fn": 0}
+            label_stats[lbl]["fp"] += 1
+        total_fp += fr.fp
+        frame_results.append(fr)
 
-    # Accuracy = F1 (harmonic mean of precision and recall) — balanced metric
+    # ── Final metrics ─────────────────────────────────────────────────────
+    precision = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0.0
+    recall    = total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 0.0
+    mean_iou  = sum(all_iou_scores) / len(all_iou_scores) if all_iou_scores else 0.0
+
     if (precision + recall) > 0:
         accuracy = 2 * (precision * recall) / (precision + recall)
     else:
         accuracy = 0.0
 
-    # Per-label precision/recall
     for lbl, s in label_stats.items():
         tp, fp, fn = s["tp"], s["fp"], s["fn"]
         s["precision"] = round(tp / (tp + fp) * 100, 1) if (tp + fp) > 0 else 0.0
-        s["recall"] = round(tp / (tp + fn) * 100, 1) if (tp + fn) > 0 else 0.0
+        s["recall"]    = round(tp / (tp + fn) * 100, 1) if (tp + fn) > 0 else 0.0
 
-    total_gt = sum(len(f.boxes) for f in gt_frames.values())
-    total_pred = sum(len(f.boxes) for f in pred_frames.values())
+    # Count GT boxes only from shared frames (fair denominator)
+    total_gt   = sum(len(gt_frames[f].boxes) for f in shared_frames)
+    total_pred = sum(len(pred_frames[f].boxes) for f in (shared_frames | pred_only_frames))
 
     return MetricsReport(
         tp=total_tp, fp=total_fp, fn=total_fn,
@@ -308,4 +310,7 @@ def compute_metrics(
         total_pred=total_pred,
         format_gt="",
         format_pred="",
+        matched_frames=len(shared_frames),
+        gt_only_frames=len(gt_only_frames),
+        pred_only_frames=len(pred_only_frames),
     )
